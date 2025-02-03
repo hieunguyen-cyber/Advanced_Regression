@@ -1,6 +1,3 @@
-"""
- Mọi người có thể đọc file features_engineering.ipynb để hiểu rõ hơn về các bước tiền xử lý dữ liệu 
-"""
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
@@ -8,12 +5,10 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.decomposition import PCA
 
 # Load the data
-# Chu y: thay doi duong dan file tuy theo vi tri luu file tren may tinh cua ban
-filepath = r'C:\Users\Admin\OneDrive - Hanoi University of Science and Technology\Training đi thi\Project\Advanced_Regression\data\raw\train.csv'
+filepath = './data/preprocessed/train_preprocessed.csv'
 data = pd.read_csv(filepath, index_col='Id')
 
 # Fill missing values
-# Fill missing values for numerical columns
 data['LotFrontage'] = data['LotFrontage'].fillna(data[data['LotFrontage'] < 300]['LotFrontage'].mean())
 data['GarageYrBlt'] = data['GarageYrBlt'].fillna(data['GarageYrBlt'].interpolate())
 data['MasVnrArea'] = data['MasVnrArea'].fillna(0)
@@ -28,7 +23,6 @@ for col in data.columns:
         
 # Fill missing function
 def fill_missing(df, col):
-    # Step 1: Set point value
     point = {}
     for type in df[col].unique():
         num = df[df[col] == type][col].count()
@@ -36,7 +30,6 @@ def fill_missing(df, col):
             point[type] = 1/num
         else:
             point[type] = 0
-    # Step 2: Find mode value for each range
     mode = {}
     for i in range(5):
         rang = [i*144020, (i+1)*144020]
@@ -46,7 +39,6 @@ def fill_missing(df, col):
             if data[data == type].count()*point[type] > max:
                 mode[i] = type
                 max = data[data == type].count()*point[type]
-    # Step 3: Fill missing value
     for i in df[df[col].isnull()].index:
         for c in mode.keys():
             if df['SalePrice'][i] in range(c*144020, (c+1)*144020):
@@ -54,7 +46,7 @@ def fill_missing(df, col):
 
 for col in lst_of_missing:
     data[col] = data[col].apply(lambda x: fill_missing(data, col, x) if x == 'Nan' else x)
-    
+
 # Encode categorical columns
 label_encoders = LabelEncoder()
 for col in data.columns:
@@ -70,3 +62,7 @@ pca = PCA(n_components=3)
 pca.fit(data_standardized.T)
 data_pca1 = pca.components_.T
 print(data_pca1)
+
+# Save preprocessed data
+output_filepath = './data/preprocessed/train_preprocessed.csv'
+data_standardized.to_csv(output_filepath)

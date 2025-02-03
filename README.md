@@ -4,6 +4,11 @@ Solving a House Price Prediction Competition for Beginners on Kaggle
 [Competition Link 🔗](https://www.kaggle.com/competitions/house-prices-advanced-regression-techniques)
 
 # Project Directory Structure
+First install requirements.txt by 
+~~~
+pip install -r requirements.
+~~~
+
 
 ```Python
 house-price-prediction/

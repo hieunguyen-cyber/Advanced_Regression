@@ -7,7 +7,7 @@ filepath = os.path.join('data', 'raw', 'train.csv')
 data = pd.read_csv(filepath, index_col='Id')
 
 # Loại bỏ cột cuối cùng khỏi danh sách cột xử lý
-columns_to_process = data.columns[:-1]
+columns_to_process = data.columns
 
 # Find columns with missing values
 lst_of_missing = [col for col in columns_to_process if data[col].isnull().sum() > 0]

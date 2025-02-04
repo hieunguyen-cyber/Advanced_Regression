@@ -5,12 +5,16 @@ import os
 # Load the data
 filepath = os.path.join('data', 'raw', 'train.csv')
 data = pd.read_csv(filepath, index_col='Id')
+
+# Loại bỏ cột cuối cùng khỏi danh sách cột xử lý
+columns_to_process = data.columns[:-1]
+
 # Find columns with missing values
-lst_of_missing = [col for col in data.columns if data[col].isnull().sum() > 0]
+lst_of_missing = [col for col in columns_to_process if data[col].isnull().sum() > 0]
 
 # Find numerical and categorical columns
-lst_of_numerical = [col for col in data.columns if data[col].dtype != 'object']
-lst_of_categorical = [col for col in data.columns if data[col].dtype == 'object']
+lst_of_numerical = [col for col in columns_to_process if data[col].dtype != 'object']
+lst_of_categorical = [col for col in columns_to_process if data[col].dtype == 'object']
 
 # Print information about missing categorical columns
 cat_missing = set(lst_of_categorical) & set(lst_of_missing)

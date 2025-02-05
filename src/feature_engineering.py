@@ -4,36 +4,40 @@ from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.decomposition import PCA
 import os
 
-# Load the train data
+# Load train & test data
 train_filepath = './data/preprocessed/train_preprocessed.csv'
-data = pd.read_csv(train_filepath, index_col='Id')
+test_filepath = './data/preprocessed/test_preprocessed.csv'
+train = pd.read_csv(train_filepath, index_col='Id')
+test = pd.read_csv(test_filepath, index_col='Id')
 
-# Fill missing values
-data['LotFrontage'] = data['LotFrontage'].fillna(data[data['LotFrontage'] < 300]['LotFrontage'].mean())
-data['GarageYrBlt'] = data['GarageYrBlt'].fillna(data['GarageYrBlt'].interpolate())
-data['MasVnrArea'] = data['MasVnrArea'].fillna(0)
+# Drop unwanted columns
+cols_to_drop = ['MiscFeature', 'PoolQC', 'Fence', 'Alley']
+train.drop(columns=cols_to_drop, inplace=True)
+test.drop(columns=cols_to_drop, inplace=True)
 
-# Fill missing values for categorical columns
-data['MasVnrType'] = data['MasVnrType'].fillna('None')
-data.drop(['MiscFeature', 'PoolQC', 'Fence', 'Alley'], axis=1, inplace=True)
+# Fill missing values (Numerical)
+train['LotFrontage'] = train['LotFrontage'].fillna(train.loc[train['LotFrontage'] < 300, 'LotFrontage'].mean())
+test['LotFrontage'] = test['LotFrontage'].fillna(test.loc[test['LotFrontage'] < 300, 'LotFrontage'].mean())
 
-# Encode categorical columns
-label_encoders = {}
-for col in data.select_dtypes(include=['object']).columns:
-    le = LabelEncoder()
-    data[col] = le.fit_transform(data[col])
-    label_encoders[col] = le  # Store encoders for potential inverse transform
+train['GarageYrBlt'] = train['GarageYrBlt'].interpolate()
+test['GarageYrBlt'] = test['GarageYrBlt'].interpolate()
 
-# Standardize numerical features
-scaler = StandardScaler()
-data_standardized = pd.DataFrame(scaler.fit_transform(data), columns=data.columns, index=data.index)
+train['MasVnrArea'] = train['MasVnrArea'].fillna(0)
+test['MasVnrArea'] = test['MasVnrArea'].fillna(0)
 
-# Save scaling parameters for SalePrice
+# Fill missing values (Categorical)
+train['MasVnrType'] = train['MasVnrType'].fillna('None')
+test['MasVnrType'] = test['MasVnrType'].fillna('None')
+
+# Separate SalePrice
+sale_price = train.pop('SalePrice')
+
+# Save SalePrice statistics
 scaling_params = {
-    'mean': data['SalePrice'].mean(),
-    'std': data['SalePrice'].std(),
-    'min': data['SalePrice'].min(),
-    'max': data['SalePrice'].max()
+    'mean': sale_price.mean(),
+    'std': sale_price.std(),
+    'min': sale_price.min(),
+    'max': sale_price.max()
 }
 scaling_params_filepath = './data/preprocessed/scaling_params.txt'
 os.makedirs(os.path.dirname(scaling_params_filepath), exist_ok=True)
@@ -41,64 +45,64 @@ with open(scaling_params_filepath, 'w') as f:
     for key, value in scaling_params.items():
         f.write(f'{key}: {value}\n')
 
-# Tách SalePrice để không áp dụng PCA lên cột này
-sale_price = data_standardized['SalePrice']
-features = data_standardized.drop(columns=['SalePrice'])
+# Encode categorical columns (Bỏ qua NaN)
+label_encoders = {}
+for col in train.select_dtypes(include=['object']).columns:
+    le = LabelEncoder()
 
-# Áp dụng PCA cho train set
-pca = PCA(n_components=30)  
-features_pca = pca.fit_transform(features)
+    # Encode train
+    train[col] = le.fit_transform(train[col].astype(str).fillna("MISSING"))
 
-# Chuyển về DataFrame
-pca_columns = [f'feature{i+1}' for i in range(features_pca.shape[1])]
-data_pca = pd.DataFrame(features_pca, columns=pca_columns, index=data_standardized.index)
+    # Cập nhật classes_ của LabelEncoder
+    test[col] = test[col].astype(str).fillna("MISSING")
+    unseen_values = set(test[col].unique()) - set(le.classes_)
 
-# Ghép lại với SalePrice
-data_pca['SalePrice'] = sale_price
+    if unseen_values:
+        le.classes_ = np.append(le.classes_, list(unseen_values))  # Thêm giá trị unseen vào classes_
 
-# Lưu lại dữ liệu đã xử lý với PCA
+    # Encode test
+    test[col] = le.transform(test[col])
+
+    label_encoders[col] = le
+
+# Fill NaN for numerical columns
+for col in train.select_dtypes(include=['number']).columns:
+    train[col] = train[col].interpolate()
+    test[col] = test[col].interpolate()
+
+# Standardize numerical features
+scaler = StandardScaler()
+train_standardized = pd.DataFrame(scaler.fit_transform(train), columns=train.columns, index=train.index)
+test_standardized = pd.DataFrame(scaler.transform(test), columns=test.columns, index=test.index)
+sale_price_scaled = scaler.fit_transform(sale_price.values.reshape(-1, 1))
+# Apply PCA (fit trên train, transform trên test)
+pca = PCA(n_components=30)
+features_pca_train = pca.fit_transform(train_standardized)
+features_pca_test = pca.transform(test_standardized)
+
+# Convert back to DataFrame
+pca_columns = [f'feature{i+1}' for i in range(features_pca_train.shape[1])]
+train_pca = pd.DataFrame(features_pca_train, columns=pca_columns, index=train_standardized.index)
+test_pca = pd.DataFrame(features_pca_test, columns=pca_columns, index=test_standardized.index)
+
+# Thêm lại SalePrice vào train PCA
+train_pca['SalePrice'] = sale_price_scaled
+train_standardized['SalePrice'] = sale_price_scaled
+
+# Save PCA processed data
 train_pca_filepath = './data/preprocessed/train_preprocessed_pca.csv'
-data_pca.to_csv(train_pca_filepath)
-
+train_pca.to_csv(train_pca_filepath)
 print(f"PCA processed train data saved to {train_pca_filepath}")
 
-# Save preprocessed train data
+test_pca_filepath = './data/preprocessed/test_preprocessed_pca.csv'
+test_pca.to_csv(test_pca_filepath)
+print(f"PCA processed test data saved to {test_pca_filepath}")
+
+# Save standardized data before PCA
 train_preprocessed_filepath = './data/preprocessed/train_preprocessed.csv'
-data_standardized.to_csv(train_preprocessed_filepath)
+train_standardized.to_csv(train_preprocessed_filepath)
 print(f"Preprocessed train data saved to {train_preprocessed_filepath}")
 
-### ---- TEST SET ---- ###
-
-# Load test data
-
-# Load test data
-test_filepath = './data/preprocessed/test_preprocessed.csv'
-data = pd.read_csv(test_filepath, index_col='Id')
-
-# Fill missing values using forward fill
-data = data.ffill()
-
-# Encode categorical columns
-label_encoders = {}
-for col in data.select_dtypes(include=['object']).columns:
-    le = LabelEncoder()
-    data[col] = le.fit_transform(data[col])
-    label_encoders[col] = le  # Store encoders for potential inverse transform
-
-# Standardize numerical features (giả sử scaler đã được fit từ train set)
-scaler = StandardScaler()
-data_standardized = pd.DataFrame(scaler.fit_transform(data), columns=data.columns, index=data.index)
-
-# Fit PCA 
-pca = PCA(n_components=30)
-features_pca = pca.fit_transform(data_standardized)
-
-# Chuyển về DataFrame
-pca_columns = [f'feature{i+1}' for i in range(features_pca.shape[1])]
-data_pca = pd.DataFrame(features_pca, columns=pca_columns, index=data_standardized.index)
-
-# Save preprocessed test data (có PCA)
-test_pca_filepath = './data/preprocessed/test_preprocessed_pca.csv'
-data_pca.to_csv(test_pca_filepath)
-
-print(f"PCA processed test data saved to {test_pca_filepath}")
+test_preprocessed_filepath = './data/preprocessed/test_preprocessed.csv'
+test_standardized.to_csv(test_preprocessed_filepath)
+print(f"Preprocessed test data saved to {test_preprocessed_filepath}")

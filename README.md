@@ -1,16 +1,10 @@
-# Advanced_Regression
-Solving a House Price Prediction Competition for Beginners on Kaggle
+# House Price Prediction
 
-[Competition Link 🔗](https://www.kaggle.com/competitions/house-prices-advanced-regression-techniques)
+## Overview
+This project aims to solve the [House Prices - Advanced Regression Techniques](https://www.kaggle.com/competitions/house-prices-advanced-regression-techniques) competition on Kaggle. The goal is to predict house prices based on various features using different regression techniques.
 
-# Project Directory Structure
-First install requirements.txt by 
-~~~
-pip install -r requirements.
-~~~
-
-
-```Python
+## Project Directory Structure
+```
 house-price-prediction/
 │
 ├── data/                    # Dữ liệu thô và đã qua xử lý
@@ -49,4 +43,41 @@ house-price-prediction/
 ├── requirements.txt         # Danh sách thư viện Python cần thiết
 ├── README.md                # Tài liệu mô tả dự án
 ├── .gitignore               # Quy định các file/folder không cần commit
-└── main.py                  # Chay file nay
+└── main.py                  # Chạy file chính
+```
+
+## Data Processing
+- Missing values are filled using interpolation.
+- PCA is applied for dimensionality reduction.
+- Data normalization is done using Z-score normalization.
+
+## Models and Training
+We experimented with multiple regression methods:
+- **MLP (Multi-Layer Perceptron)**
+- **XGBoost** (Gradient Boosted Trees)
+- **Various Regression techniques** (Linear, Ridge, Lasso, etc.)
+- **Random Forest**
+
+We also used **Optuna** for hyperparameter tuning to find the best configurations.
+
+## Best Performance
+- The best model achieved an **RMSE of 0.13780**, using **XGBoost**.
+
+## Installation
+First, install the required dependencies:
+```sh
+pip install -r requirements.txt
+```
+
+## Running the Project
+To train and evaluate the model, run:
+```sh
+python main.py
+```
+
+## Authors
+- Nguyễn Trung Hiếu
+
+## License
+This project is open-source under the MIT License.
+
